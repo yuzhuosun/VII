@@ -72,7 +72,7 @@ python scripts/inspect_dataset.py conceptrisk
 
 ### 3. Dry-run the unified experiment entrypoint
 
-Use `--dry-run` with the offline `mock` backend for a one-sample smoke test. This runs dataset loading, malicious intent reprogramming, visual instruction grounding, request recording, and JSONL metadata export without dispatching to a commercial model.
+Use `--dry-run` with the offline `mock` backend for a one-sample smoke test. This runs malicious intent reprogramming, visual instruction grounding, request recording, and JSONL metadata export without dispatching to a commercial model. Use `--dataset-source synthetic` when CI should not depend on downloaded datasets.
 
 ```bash
 python scripts/run_vii_experiment.py \
@@ -82,12 +82,13 @@ python scripts/run_vii_experiment.py \
   --output-dir outputs/smoke_coco_mock \
   --limit 1 \
   --seed 42 \
-  --dry-run
+  --dry-run \
+  --dataset-source synthetic
 ```
 
 ### 4. Run a single-model experiment
 
-The named model backends (`kling`, `veo`, `seedance`, `pixverse`) currently write reproducible request artifacts under the selected output directory. Wire the generated `*.request.json` files to your approved vendor runner if you have access.
+The named model backends (`kling`, `veo`, `seedance`, `pixverse`) currently write reproducible request artifacts under the selected output directory. By default, the runner uses `data/processed/{dataset}.jsonl` when present and otherwise falls back to HuggingFace loading. Wire the generated `*.request.json` files to your approved vendor runner if you have access.
 
 ```bash
 python scripts/run_vii_experiment.py \

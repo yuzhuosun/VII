@@ -5,6 +5,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
+from dataclasses import asdict
+from pathlib import Path
 import random
 import shutil
 import sys
@@ -20,6 +23,8 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from vii.data.hf_datasets import DATASET_CONFIGS
+from vii.experiment import DATASET_SOURCE_CHOICES, MODEL_CHOICES, run_experiment
 from vii.data.hf_datasets import DATASET_CONFIGS, iter_dataset_samples
 from vii.grounding import GroundingConfig, VisualInstructionGrounder
 from vii.pipeline import I2VProvider, MockI2VProvider, VIIPipeline
@@ -92,11 +97,35 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--split", default=None, help="Dataset split override; defaults to dataset config.")
+    parser.add_argument(
+        "--dataset-source",
+        choices=DATASET_SOURCE_CHOICES,
+        default="auto",
+        help="Use processed JSONL, HuggingFace, or a synthetic smoke-test sample.",
+    )
+    parser.add_argument(
+        "--append-metadata",
+        action="store_true",
+        help="Append to an existing metadata.jsonl instead of starting a fresh run file.",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    summary = run_experiment(
+        dataset=args.dataset,
+        model=args.model,
+        config_path=args.config,
+        output_dir=args.output_dir,
+        limit=args.limit,
+        seed=args.seed,
+        dry_run=args.dry_run,
+        split=args.split,
+        dataset_source=args.dataset_source,
+        reset_output=not args.append_metadata,
+    )
+    print(json.dumps(asdict(summary), ensure_ascii=False, indent=2))
     config = load_config(Path(args.config))
     seed = args.seed if args.seed is not None else int(config.get("attack", {}).get("seed", 42))
     random.seed(seed)

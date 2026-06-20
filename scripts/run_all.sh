@@ -31,7 +31,8 @@ run_one() {
   --output-dir "${OUTPUT_ROOT}/ci_mock" \
   --limit 1 \
   --seed "${SEED}" \
-  --dry-run
+  --dry-run \
+  --dataset-source synthetic
 
 for dataset in coco_i2v_safetybench conceptrisk; do
   for model in kling veo seedance pixverse; do
