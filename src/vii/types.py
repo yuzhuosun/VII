@@ -14,7 +14,9 @@ class DatasetSample:
     sample_id: str
     prompt: str
     category: str
-    image_path: str | Path
+    image_path: str | Path = ""
+    image: Any | None = None
+    source_dataset: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
