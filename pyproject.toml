@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vii"
+version = "0.1.0"
+description = "Visual Instruction Injection research pipeline utilities"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "pillow",
+    "opencv-python",
+    "numpy",
+    "pandas",
+    "datasets",
+    "tqdm",
+    "pyyaml",
+    "pydantic",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
