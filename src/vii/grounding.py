@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import random
 import textwrap
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Literal
 
@@ -84,11 +84,11 @@ class VisualInstructionGrounder:
             instruction=text,
             position=(x, y),
             size=(text_w, text_h),
-            metadata={"config": cfg.__dict__},
+            metadata={"config": asdict(cfg)},
         )
 
     def _merged_config(self, overrides: dict[str, object]) -> GroundingConfig:
-        values = self.config.__dict__.copy()
+        values = asdict(self.config)
         values.update({k: v for k, v in overrides.items() if v is not None})
         return GroundingConfig(**values)
 
