@@ -1,0 +1,19 @@
+datasets:
+  coco_i2v_safetybench:
+    hf_id: yonglixiang/COCO-I2VSafetyBench
+    default_split: train
+    cache_dir: data/cache/huggingface/coco_i2v_safetybench
+    field_mapping:
+      sample_id: [sample_id, id, image_id, idx]
+      image: [image_path, image, coco_url, file_name, filepath]
+      prompt: [prompt, instruction, question, caption, text]
+      category: [category, risk_category, safety_category, label]
+  conceptrisk:
+    hf_id: yonglixiang/ConceptRisk-Repro
+    default_split: train
+    cache_dir: data/cache/huggingface/conceptrisk
+    field_mapping:
+      sample_id: [sample_id, id, concept_id, idx]
+      image: [image_path, image, img, file_name, filepath]
+      prompt: [prompt, text, instruction, caption, concept]
+      category: [category, risk_category, concept, label, class]
