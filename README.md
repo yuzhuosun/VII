@@ -47,6 +47,85 @@
 
 ---
 
+
+## ⚡ Quick Start
+
+> VII is intended for controlled AI-safety research and red-team evaluation. The default `mock` and `--dry-run` paths avoid calling external I2V services and are suitable for local validation/CI.
+
+### 1. Create an environment
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .
+```
+
+### 2. Download datasets
+
+Export HuggingFace rows into local images plus processed JSONL manifests:
+
+```bash
+python scripts/download_datasets.py --dataset all --output-dir data/raw --split train
+python scripts/inspect_dataset.py coco_i2v_safetybench
+python scripts/inspect_dataset.py conceptrisk
+```
+
+### 3. Dry-run the unified experiment entrypoint
+
+Use `--dry-run` with the offline `mock` backend for a one-sample smoke test. This runs malicious intent reprogramming, visual instruction grounding, request recording, and JSONL metadata export without dispatching to a commercial model. Use `--dataset-source synthetic` when CI should not depend on downloaded datasets.
+
+```bash
+python scripts/run_vii_experiment.py \
+  --dataset coco_i2v_safetybench \
+  --model mock \
+  --config configs/vii.yaml \
+  --output-dir outputs/smoke_coco_mock \
+  --limit 1 \
+  --seed 42 \
+  --dry-run \
+  --dataset-source synthetic
+```
+
+### 4. Run a single-model experiment
+
+The named model backends (`kling`, `veo`, `seedance`, `pixverse`) currently write reproducible request artifacts under the selected output directory. By default, the runner uses `data/processed/{dataset}.jsonl` when present and otherwise falls back to HuggingFace loading. Wire the generated `*.request.json` files to your approved vendor runner if you have access.
+
+```bash
+python scripts/run_vii_experiment.py \
+  --dataset conceptrisk \
+  --model kling \
+  --config configs/vii.yaml \
+  --output-dir outputs/conceptrisk_kling \
+  --limit 100 \
+  --seed 42
+```
+
+Each run writes grounded images to `images/`, model request/video artifacts to `videos/`, per-sample records to `metadata.jsonl`, and aggregate status counts to `summary.json`.
+
+### 5. Evaluate generated outputs
+
+After replacing request artifacts with real generated videos, run your safety evaluator over the `metadata.jsonl` file and generated video paths. The repository keeps generation metadata stable so external evaluators can join on `sample_id`, `provider`, and `video_path`.
+
+```bash
+python scripts/inspect_dataset.py data/processed/coco_i2v_safetybench.jsonl
+# Example evaluator hook (replace with your approved evaluator):
+# python scripts/evaluate_videos.py --metadata outputs/conceptrisk_kling/metadata.jsonl --output outputs/conceptrisk_kling/eval.jsonl
+```
+
+### 6. Reproduce paper tables
+
+`scripts/run_all.sh` chains the full benchmark grid: COCO-I2VSafetyBench × four I2V models, ConceptRisk-Repro × four I2V models, plus a mock CI smoke test. Set `LIMIT` for a smaller rehearsal, or omit it for the configured maximum in `configs/vii.yaml`.
+
+```bash
+LIMIT=10 SEED=42 OUTPUT_ROOT=outputs/paper_repro bash scripts/run_all.sh
+# Full configured run:
+# SEED=42 OUTPUT_ROOT=outputs/paper_repro bash scripts/run_all.sh
+```
+
+The default attack configuration in `configs/vii.yaml` controls text render position, font size, color, instruction template, reprogramming provider, maximum sample count, and random seed.
+
+---
+
 ## 💐 Acknowledgements
 
 This project incorporates evaluation logic and concepts from the following excellent open-source works. We thank the authors for their contributions to the AI Safety community.
