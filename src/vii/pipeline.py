@@ -11,6 +11,7 @@ from typing import Any, Protocol
 from tqdm import tqdm
 
 from .grounding import GroundingConfig, VisualInstructionGrounder
+from .models.base import SAFETY_NOTICE_FILENAME, SAFETY_NOTICE_TEXT, require_safety_acknowledgement
 from .reprogramming import IntentReprogrammer
 from .types import DatasetSample, GenerationResult
 
@@ -56,6 +57,7 @@ class VIIPipeline:
         reprogrammer: IntentReprogrammer | None = None,
         grounder: VisualInstructionGrounder | None = None,
         i2v_provider: I2VProvider | None = None,
+        acknowledge_safety_research_use: bool = False,
     ):
         self.output_dir = Path(output_dir)
         self.images_dir = self.output_dir / "images"
@@ -64,6 +66,9 @@ class VIIPipeline:
         self.reprogrammer = reprogrammer or IntentReprogrammer(provider="mock")
         self.grounder = grounder or VisualInstructionGrounder(GroundingConfig())
         self.i2v_provider = i2v_provider or MockI2VProvider()
+        self.acknowledge_safety_research_use = acknowledge_safety_research_use
+        require_safety_acknowledgement(self.i2v_provider, acknowledge_safety_research_use)
+        self._write_safety_notice()
 
     def run(self, sample: DatasetSample | dict[str, Any]) -> GenerationResult:
         """Run one sample through the VII workflow and append JSONL metadata."""
@@ -96,6 +101,13 @@ class VIIPipeline:
         """Run multiple samples with a progress bar."""
 
         return [self.run(sample) for sample in tqdm(samples, desc="VII pipeline")]
+
+    def _write_safety_notice(self) -> None:
+        """Write the responsible-use notice into the experiment output directory."""
+
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        notice_path = self.output_dir / SAFETY_NOTICE_FILENAME
+        notice_path.write_text(SAFETY_NOTICE_TEXT, encoding="utf-8")
 
     def _append_metadata(self, record: dict[str, Any]) -> None:
         self.output_dir.mkdir(parents=True, exist_ok=True)

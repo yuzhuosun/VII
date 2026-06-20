@@ -1,26 +1,40 @@
-"""Common abstractions for image-to-video model clients."""
+"""Base model abstractions and safety controls for VII providers."""
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from typing import Any
 
-from vii.types import GenerationResult
+SAFETY_RESEARCH_ACK_FLAG = "--acknowledge-safety-research-use"
+SAFETY_NOTICE_FILENAME = "SAFETY_NOTICE.md"
+SAFETY_NOTICE_TEXT = """# Safety Notice
+
+Artifacts in this directory are generated only for controlled AI safety red-teaming, vulnerability assessment, and defensive research. Do not use them to enable, promote, distribute, or optimize harmful, abusive, illegal, deceptive, or malicious media.
+
+Keep generated artifacts access-controlled, comply with applicable laws and platform policies, and obtain any required institutional or organizational approvals before testing real systems.
+"""
+
+_OFFLINE_PROVIDER_NAMES = frozenset({"mock", "mock-i2v", "dry-run", "dry-run-i2v"})
 
 
-class I2VModelClient(ABC):
-    """Abstract image-to-video generation client interface."""
+class SafetyAcknowledgementRequired(RuntimeError):
+    """Raised when a real I2V API is requested without explicit safety acknowledgement."""
 
-    name: str
 
-    @abstractmethod
-    def generate(self, image_path: str, prompt: str, output_path: str, **kwargs: Any) -> GenerationResult:
-        """Start or perform image-to-video generation."""
+def is_offline_i2v_provider(provider: Any) -> bool:
+    """Return ``True`` when ``provider`` is an offline mock/dry-run backend."""
 
-    @abstractmethod
-    def check_status(self, job_id: str) -> dict[str, Any]:
-        """Return provider-specific status for a generation job."""
+    provider_name = str(getattr(provider, "name", "")).strip().lower()
+    return provider_name in _OFFLINE_PROVIDER_NAMES or provider_name.startswith(("mock-", "dry-run-"))
 
-    @abstractmethod
-    def download(self, job_id: str, output_path: str) -> str:
-        """Download a completed job artifact and return the local path."""
+
+def require_safety_acknowledgement(provider: Any, acknowledged: bool) -> None:
+    """Require an explicit acknowledgement before using non-offline I2V providers."""
+
+    if is_offline_i2v_provider(provider) or acknowledged:
+        return
+    provider_name = getattr(provider, "name", provider.__class__.__name__)
+    raise SafetyAcknowledgementRequired(
+        f"Provider '{provider_name}' may call a real I2V API and requires "
+        f"{SAFETY_RESEARCH_ACK_FLAG}. Use mock/dry-run mode for examples, or explicitly acknowledge "
+        "controlled AI safety red-teaming use before calling a real provider."
+    )

@@ -48,6 +48,27 @@
 ---
 
 
+## Responsible Use
+
+VII is released solely for controlled **AI safety red-teaming**, vulnerability discovery, and defensive evaluation of image-to-video systems. You may not use this project to create, automate, distribute, or optimize harmful, abusive, illegal, deceptive, or malicious media. Keep experiment outputs access-controlled, follow applicable law and platform policies, and obtain any required institutional or organizational approvals before testing real systems.
+
+Safety controls in the code are intentionally conservative:
+
+* The example runner defaults to `--dry-run` and the `mock` backend, so it does not call real commercial I2V APIs by default.
+* Real API mode requires an explicit `--acknowledge-safety-research-use` acknowledgement before any non-mock provider can be constructed.
+* Experiment output directories include `SAFETY_NOTICE.md`, documenting that generated artifacts are for AI safety red-teaming only.
+
+Safe example commands:
+
+```bash
+# Validate the runner and write outputs/vii_experiment/SAFETY_NOTICE.md without API calls.
+python scripts/run_vii_experiment.py --dry-run
+
+# Exercise the local mock path only; provide your own benign/internal JSONL sample file.
+python scripts/run_vii_experiment.py --provider mock --no-dry-run --input-jsonl path/to/benign_samples.jsonl --limit 1
+```
+
+This README intentionally avoids default commands or parameters that would directly batch-generate harmful videos.
 ## ⚡ Quick Start
 
 > VII is intended for controlled AI-safety research and red-team evaluation. The default `mock` and `--dry-run` paths avoid calling external I2V services and are suitable for local validation/CI.
@@ -136,8 +157,9 @@ This project incorporates evaluation logic and concepts from the following excel
 
 ## ⚠️ Disclaimer
 
-This project is designed for **AI Safety Research** and **Red Teaming** purposes. The goal is to identify vulnerabilities in current I2V models to build more robust defense mechanisms. 
+This project is designed for **AI Safety Research** and **Red Teaming** purposes. The goal is to identify vulnerabilities in current I2V models to build more robust defense mechanisms.
 * **Do not use this concept to generate harmful content for malicious purposes.**
+* Do not use this project for harassment, abuse, fraud, illegal activity, evasion of safety systems outside authorized testing, or scalable harmful media generation.
 * The generated content may be offensive or disturbing. Viewer discretion is advised.
 
 ---
@@ -153,3 +175,4 @@ If you find this work useful, please cite our paper:
   journal={arXiv preprint arXiv:2602.20999},
   year={2026}
 }
+```
