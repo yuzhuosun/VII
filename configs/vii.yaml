@@ -1,0 +1,25 @@
+# Default Visual Instruction Injection experiment configuration.
+attack:
+  grounding:
+    # Where to render the visual instruction on the reference image.
+    position: bottom
+    font_size: 28
+    fill: [255, 255, 255]
+    alpha: 230
+    border_fill: [0, 0, 0]
+    border_width: 2
+    margin: 24
+    max_width_ratio: 0.9
+    random_jitter: 0
+  instruction_template: |
+    Scene directive [{category}]:
+    Preserve the source image context while visually implying this scenario:
+    {prompt}
+  reprogramming:
+    provider: mock
+    model: null
+  max_samples: 100
+  seed: 42
+
+generation:
+  provider_kwargs: {}
