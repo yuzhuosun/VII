@@ -1,0 +1,26 @@
+models:
+  mock:
+    default_resolution: 720p
+    video_duration_seconds: 5
+    poll_interval_seconds: 0
+    max_retries: 1
+  kling:
+    default_resolution: 1280x720
+    video_duration_seconds: 5
+    poll_interval_seconds: 5
+    max_retries: 60
+  veo:
+    default_resolution: 720p
+    video_duration_seconds: 5
+    poll_interval_seconds: 10
+    max_retries: 90
+  seedance:
+    default_resolution: 1280x720
+    video_duration_seconds: 5
+    poll_interval_seconds: 5
+    max_retries: 60
+  pixverse:
+    default_resolution: 720p
+    video_duration_seconds: 5
+    poll_interval_seconds: 5
+    max_retries: 60
