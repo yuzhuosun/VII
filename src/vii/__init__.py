@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .models.base import SafetyAcknowledgementRequired
+from .models.base import SafetyAcknowledgementRequired, require_safety_acknowledgement
 from .types import DatasetSample, EvaluationResult, GenerationResult, GroundedImage, ReprogrammedIntent
 
 __all__ = [
@@ -14,6 +14,7 @@ __all__ = [
     "IntentReprogrammer",
     "ReprogrammedIntent",
     "SafetyAcknowledgementRequired",
+    "require_safety_acknowledgement",
     "VIIPipeline",
     "VisualInstructionGrounder",
 ]

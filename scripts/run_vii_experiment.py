@@ -10,10 +10,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from vii.models.base import SafetyAcknowledgementRequired
+REPO_ROOT = Path(__file__).resolve().parents[1]
+SRC_ROOT = REPO_ROOT / "src"
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
+
+from vii.models.base import SAFETY_NOTICE_FILENAME, SafetyAcknowledgementRequired
 from vii.pipeline import MockI2VProvider, VIIPipeline
 from vii.types import GenerationResult
 
@@ -82,7 +89,7 @@ def main() -> int:
     )
 
     if args.dry_run:
-        print(f"Dry run complete. Safety notice written to {args.output_dir / 'SAFETY_NOTICE.md'}")
+        print(f"Dry run complete. Safety notice written to {args.output_dir / SAFETY_NOTICE_FILENAME}")
         return 0
 
     if args.provider != "mock":
@@ -90,8 +97,11 @@ def main() -> int:
     if not args.input_jsonl:
         raise ValueError("--input-jsonl is required when running mock generation with --no-dry-run.")
 
+    if args.limit < 1:
+        raise ValueError("--limit must be a positive integer.")
+
     results = pipeline.run_many(load_samples(args.input_jsonl, args.limit))
-    print(json.dumps([result.__dict__ for result in results], ensure_ascii=False, indent=2))
+    print(json.dumps([asdict(result) for result in results], ensure_ascii=False, indent=2))
     return 0
 
 

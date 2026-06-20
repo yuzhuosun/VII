@@ -55,7 +55,7 @@ VII is released solely for controlled **AI safety red-teaming**, vulnerability d
 Safety controls in the code are intentionally conservative:
 
 * The example runner defaults to `--dry-run` and the `mock` backend, so it does not call real commercial I2V APIs by default.
-* Real API mode requires an explicit `--acknowledge-safety-research-use` acknowledgement.
+* Real API mode requires an explicit `--acknowledge-safety-research-use` acknowledgement before any non-mock provider can be constructed.
 * Experiment output directories include `SAFETY_NOTICE.md`, documenting that generated artifacts are for AI safety red-teaming only.
 
 Safe example commands:
@@ -101,5 +101,4 @@ If you find this work useful, please cite our paper:
   journal={arXiv preprint arXiv:2602.20999},
   year={2026}
 }
-
 ```

@@ -11,8 +11,8 @@ from typing import Any, Protocol
 from tqdm import tqdm
 
 from .grounding import GroundingConfig, VisualInstructionGrounder
+from .models.base import SAFETY_NOTICE_FILENAME, SAFETY_NOTICE_TEXT, require_safety_acknowledgement
 from .reprogramming import IntentReprogrammer
-from .models.base import SafetyAcknowledgementRequired
 from .types import DatasetSample, GenerationResult
 
 
@@ -23,12 +23,6 @@ class I2VProvider(Protocol):
 
     def generate(self, image_path: str, prompt: str, output_path: str, **kwargs: Any) -> GenerationResult:
         """Generate a video conditioned on an image and text prompt."""
-
-
-SAFETY_NOTICE = """# Safety Notice
-
-Outputs in this directory are generated only for controlled AI safety red-teaming, vulnerability assessment, and defensive research. They must not be used to enable, promote, or distribute harmful, abusive, illegal, or malicious content. Keep generated artifacts access-controlled and follow applicable laws, platform policies, and institutional review requirements.
-"""
 
 
 @dataclass(slots=True)
@@ -73,12 +67,7 @@ class VIIPipeline:
         self.grounder = grounder or VisualInstructionGrounder(GroundingConfig())
         self.i2v_provider = i2v_provider or MockI2VProvider()
         self.acknowledge_safety_research_use = acknowledge_safety_research_use
-        if not isinstance(self.i2v_provider, MockI2VProvider) and not acknowledge_safety_research_use:
-            raise SafetyAcknowledgementRequired(
-                "Real I2V providers require acknowledge_safety_research_use=True. "
-                "Use the mock provider/dry-run for local examples, or explicitly acknowledge "
-                "controlled AI safety red-teaming use before calling a real API."
-            )
+        require_safety_acknowledgement(self.i2v_provider, acknowledge_safety_research_use)
         self._write_safety_notice()
 
     def run(self, sample: DatasetSample | dict[str, Any]) -> GenerationResult:
@@ -117,9 +106,8 @@ class VIIPipeline:
         """Write the responsible-use notice into the experiment output directory."""
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        notice_path = self.output_dir / "SAFETY_NOTICE.md"
-        if not notice_path.exists():
-            notice_path.write_text(SAFETY_NOTICE, encoding="utf-8")
+        notice_path = self.output_dir / SAFETY_NOTICE_FILENAME
+        notice_path.write_text(SAFETY_NOTICE_TEXT, encoding="utf-8")
 
     def _append_metadata(self, record: dict[str, Any]) -> None:
         self.output_dir.mkdir(parents=True, exist_ok=True)
