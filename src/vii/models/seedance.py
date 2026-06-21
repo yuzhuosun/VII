@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 from urllib.request import urlretrieve
 
-from vii.models._http import LoggedHTTPClientMixin, image_data_uri, require_env
+from vii.models._http import LoggedHTTPClientMixin, image_data_uri, require_env, sleep_for_poll
 from vii.models.base import I2VModelClient
 from vii.types import GenerationResult
 
@@ -23,10 +23,16 @@ class SeedanceI2VClient(LoggedHTTPClientMixin, I2VModelClient):
 
     def generate(self, image_path: str, prompt: str, output_path: str, **kwargs: Any) -> GenerationResult:
         response = self._json_request(self.name, "POST", f"{self.base_url}/v1/videos/image-to-video", self._headers(), {
+            "model": kwargs.get("model", "seedance-1.5-pro"),
             "prompt": prompt, "image": image_data_uri(image_path), "resolution": kwargs.get("resolution", "1280x720"), "duration": kwargs.get("duration", 5)
         })
         job_id = str(response.get("job_id") or response.get("id"))
-        return GenerationResult(str(kwargs.get("sample_id", "unknown")), image_path, None, self.name, str(response.get("status", "submitted")), {"job_id": job_id, "response": response})
+        status = str(response.get("status", "submitted"))
+        video_path = None
+        if kwargs.get("wait", False):
+            video_path = self._wait_and_download(job_id, output_path, kwargs)
+            status = "succeeded"
+        return GenerationResult(str(kwargs.get("sample_id", "unknown")), image_path, video_path, self.name, status, {"job_id": job_id, "response": response})
 
     def check_status(self, job_id: str) -> dict[str, Any]:
         return self._json_request(self.name, "GET", f"{self.base_url}/v1/videos/{job_id}", self._headers())
@@ -43,3 +49,11 @@ class SeedanceI2VClient(LoggedHTTPClientMixin, I2VModelClient):
 
     def _headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
+
+    def _wait_and_download(self, job_id: str, output_path: str, kwargs: dict[str, Any]) -> str:
+        for _ in range(int(kwargs.get("max_retries", 60))):
+            status = self.check_status(job_id)
+            if status.get("status") in {"succeeded", "completed", "success"}:
+                return self.download(job_id, output_path)
+            sleep_for_poll(float(kwargs.get("poll_interval", 5)))
+        raise TimeoutError(f"Timed out waiting for Seedance job {job_id}")
