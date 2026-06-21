@@ -23,7 +23,15 @@ class FieldMapping:
 
     sample_id: tuple[str, ...] = ("sample_id", "id", "idx", "index")
     image: tuple[str, ...] = ("image_path", "image", "img", "image_file", "file_name", "filepath")
-    prompt: tuple[str, ...] = ("prompt", "text", "instruction", "question", "caption")
+    prompt: tuple[str, ...] = (
+        "harmful_video_prompt",
+        "unsafe_video_prompt",
+        "prompt",
+        "text",
+        "instruction",
+        "question",
+        "caption",
+    )
     category: tuple[str, ...] = ("category", "risk_category", "concept", "label", "class")
 
 
@@ -46,7 +54,7 @@ DATASET_CONFIGS: dict[str, DatasetConfig] = {
         field_mapping=FieldMapping(
             sample_id=("sample_id", "id", "image_id", "idx"),
             image=("image_path", "image", "coco_url", "file_name", "filepath"),
-            prompt=("prompt", "instruction", "question", "caption", "text"),
+            prompt=("harmful_video_prompt", "prompt", "instruction", "question", "caption", "text"),
             category=("category", "risk_category", "safety_category", "label"),
         ),
     ),
@@ -57,7 +65,7 @@ DATASET_CONFIGS: dict[str, DatasetConfig] = {
         field_mapping=FieldMapping(
             sample_id=("sample_id", "id", "concept_id", "idx"),
             image=("image_path", "image", "img", "file_name", "filepath"),
-            prompt=("prompt", "text", "instruction", "caption", "concept"),
+            prompt=("unsafe_video_prompt", "prompt", "text", "instruction", "caption", "concept"),
             category=("category", "risk_category", "concept", "label", "class"),
         ),
     ),
