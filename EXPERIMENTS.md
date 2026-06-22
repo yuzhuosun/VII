@@ -21,6 +21,25 @@ pip install -e .
 python scripts/download_datasets.py --dataset all --output-dir data/raw --split train
 ```
 
+On slow or unstable networks, prefer one dataset at a time with streaming, resume,
+more retries, and longer HuggingFace Hub timeouts:
+
+```bash
+python scripts/download_datasets.py \
+  --dataset conceptrisk \
+  --output-dir data/raw \
+  --split train \
+  --streaming \
+  --resume \
+  --max-retries 10 \
+  --num-proc 1 \
+  --download-timeout 300
+```
+
+If a run times out, rerun the same command with `--resume`; completed rows in
+`data/processed/<dataset>.jsonl` are skipped and HuggingFace cache downloads are
+resumed.
+
 The downloader writes normalized manifests to:
 
 - `data/processed/coco_i2v_safetybench.jsonl`
@@ -124,4 +143,3 @@ python scripts/evaluate.py \
 ```
 
 The evaluator reports ASR and RR in `eval_results.json`. For paper-quality reproduction, you should replace the mock visual-safety classifier with the same VBench/T2V-SafetyBench-style evaluator stack used by your lab, because this repository's default visual classifier is intentionally a lightweight local placeholder.
-

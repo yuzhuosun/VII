@@ -70,6 +70,8 @@ python scripts/inspect_dataset.py coco_i2v_safetybench
 python scripts/inspect_dataset.py conceptrisk
 ```
 
+If HuggingFace image downloads time out, rerun a single dataset with `--streaming --resume --max-retries 10 --num-proc 1 --download-timeout 300`; see [EXPERIMENTS.md](EXPERIMENTS.md).
+
 ### 3. Dry-run the unified experiment entrypoint
 
 Use `--dry-run` with the offline `mock` backend for a one-sample smoke test. This runs dataset loading, malicious intent reprogramming, visual instruction grounding, request recording, and JSONL metadata export without dispatching to a commercial model.

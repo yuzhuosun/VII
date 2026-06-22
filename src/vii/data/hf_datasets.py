@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from datasets import Dataset, DatasetDict, IterableDataset, IterableDatasetDict, load_dataset
+from datasets import Dataset, DatasetDict, DownloadConfig, IterableDataset, IterableDatasetDict, load_dataset
 
 from vii.types import DatasetSample
 
@@ -77,6 +77,7 @@ def load_vii_dataset(
     split: str | None = None,
     cache_dir: str | Path | None = None,
     streaming: bool = False,
+    download_config: DownloadConfig | None = None,
 ) -> Dataset | DatasetDict | IterableDataset | IterableDatasetDict:
     """Load a supported VII HuggingFace dataset by short name."""
 
@@ -87,6 +88,7 @@ def load_vii_dataset(
         split=requested_split,
         cache_dir=str(cache_dir or config.cache_dir) if (cache_dir or config.cache_dir) else None,
         streaming=streaming,
+        download_config=download_config,
     )
 
 
@@ -95,11 +97,12 @@ def iter_dataset_samples(
     split: str | None = None,
     cache_dir: str | Path | None = None,
     streaming: bool = False,
+    download_config: DownloadConfig | None = None,
 ) -> Iterable[DatasetSample]:
     """Yield normalized :class:`DatasetSample` objects for a dataset/split."""
 
     config = _get_config(dataset)
-    loaded = load_vii_dataset(dataset, split=split, cache_dir=cache_dir, streaming=streaming)
+    loaded = load_vii_dataset(dataset, split=split, cache_dir=cache_dir, streaming=streaming, download_config=download_config)
     if isinstance(loaded, (DatasetDict, IterableDatasetDict)):
         for split_name, split_dataset in loaded.items():
             for index, record in enumerate(split_dataset):
