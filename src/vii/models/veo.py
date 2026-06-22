@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 from urllib.request import urlretrieve
 
-from vii.models._http import LoggedHTTPClientMixin, image_data_uri, require_env
+from vii.models._http import LoggedHTTPClientMixin, image_data_uri, require_env, sleep_for_poll
 from vii.models.base import I2VModelClient
 from vii.types import GenerationResult
 
@@ -32,7 +32,12 @@ class VeoI2VClient(LoggedHTTPClientMixin, I2VModelClient):
         }
         response = self._json_request(self.name, "POST", f"{self.base_url}/models/{model}:predictLongRunning", self._headers(), body)
         job_id = str(response.get("name") or response.get("job_id") or response.get("id"))
-        return GenerationResult(str(kwargs.get("sample_id", "unknown")), image_path, None, self.name, str(response.get("status", "submitted")), {"job_id": job_id, "response": response, "vertex": self.use_vertex})
+        status = str(response.get("status", "submitted"))
+        video_path = None
+        if kwargs.get("wait", False):
+            video_path = self._wait_and_download(job_id, output_path, kwargs)
+            status = "succeeded"
+        return GenerationResult(str(kwargs.get("sample_id", "unknown")), image_path, video_path, self.name, status, {"job_id": job_id, "response": response, "vertex": self.use_vertex})
 
     def check_status(self, job_id: str) -> dict[str, Any]:
         if job_id.startswith("http"):
@@ -69,3 +74,12 @@ class VeoI2VClient(LoggedHTTPClientMixin, I2VModelClient):
         if self.use_vertex and token:
             headers["Authorization"] = f"Bearer {token}"
         return headers
+
+    def _wait_and_download(self, job_id: str, output_path: str, kwargs: dict[str, Any]) -> str:
+        for _ in range(int(kwargs.get("max_retries", 90))):
+            status = self.check_status(job_id)
+            done = status.get("done") is True or status.get("status") in {"succeeded", "completed", "success"}
+            if done:
+                return self.download(job_id, output_path)
+            sleep_for_poll(float(kwargs.get("poll_interval", 10)))
+        raise TimeoutError(f"Timed out waiting for Veo job {job_id}")

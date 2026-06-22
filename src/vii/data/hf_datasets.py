@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from datasets import Dataset, DatasetDict, IterableDataset, IterableDatasetDict, load_dataset
+from datasets import Dataset, DatasetDict, DownloadConfig, IterableDataset, IterableDatasetDict, load_dataset
 
 from vii.types import DatasetSample
 
@@ -23,7 +23,15 @@ class FieldMapping:
 
     sample_id: tuple[str, ...] = ("sample_id", "id", "idx", "index")
     image: tuple[str, ...] = ("image_path", "image", "img", "image_file", "file_name", "filepath")
-    prompt: tuple[str, ...] = ("prompt", "text", "instruction", "question", "caption")
+    prompt: tuple[str, ...] = (
+        "harmful_video_prompt",
+        "unsafe_video_prompt",
+        "prompt",
+        "text",
+        "instruction",
+        "question",
+        "caption",
+    )
     category: tuple[str, ...] = ("category", "risk_category", "concept", "label", "class")
 
 
@@ -46,7 +54,7 @@ DATASET_CONFIGS: dict[str, DatasetConfig] = {
         field_mapping=FieldMapping(
             sample_id=("sample_id", "id", "image_id", "idx"),
             image=("image_path", "image", "coco_url", "file_name", "filepath"),
-            prompt=("prompt", "instruction", "question", "caption", "text"),
+            prompt=("harmful_video_prompt", "prompt", "instruction", "question", "caption", "text"),
             category=("category", "risk_category", "safety_category", "label"),
         ),
     ),
@@ -57,7 +65,7 @@ DATASET_CONFIGS: dict[str, DatasetConfig] = {
         field_mapping=FieldMapping(
             sample_id=("sample_id", "id", "concept_id", "idx"),
             image=("image_path", "image", "img", "file_name", "filepath"),
-            prompt=("prompt", "text", "instruction", "caption", "concept"),
+            prompt=("unsafe_video_prompt", "prompt", "text", "instruction", "caption", "concept"),
             category=("category", "risk_category", "concept", "label", "class"),
         ),
     ),
@@ -69,6 +77,7 @@ def load_vii_dataset(
     split: str | None = None,
     cache_dir: str | Path | None = None,
     streaming: bool = False,
+    download_config: DownloadConfig | None = None,
 ) -> Dataset | DatasetDict | IterableDataset | IterableDatasetDict:
     """Load a supported VII HuggingFace dataset by short name."""
 
@@ -79,6 +88,7 @@ def load_vii_dataset(
         split=requested_split,
         cache_dir=str(cache_dir or config.cache_dir) if (cache_dir or config.cache_dir) else None,
         streaming=streaming,
+        download_config=download_config,
     )
 
 
@@ -87,11 +97,12 @@ def iter_dataset_samples(
     split: str | None = None,
     cache_dir: str | Path | None = None,
     streaming: bool = False,
+    download_config: DownloadConfig | None = None,
 ) -> Iterable[DatasetSample]:
     """Yield normalized :class:`DatasetSample` objects for a dataset/split."""
 
     config = _get_config(dataset)
-    loaded = load_vii_dataset(dataset, split=split, cache_dir=cache_dir, streaming=streaming)
+    loaded = load_vii_dataset(dataset, split=split, cache_dir=cache_dir, streaming=streaming, download_config=download_config)
     if isinstance(loaded, (DatasetDict, IterableDatasetDict)):
         for split_name, split_dataset in loaded.items():
             for index, record in enumerate(split_dataset):
