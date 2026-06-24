@@ -6,7 +6,7 @@ datasets:
     field_mapping:
       sample_id: [sample_id, id, image_id, idx]
       image: [image_path, image, coco_url, file_name, filepath]
-      prompt: [prompt, instruction, question, caption, text]
+      prompt: [harmful_video_prompt, prompt, instruction, question, caption, text]
       category: [category, risk_category, safety_category, label]
   conceptrisk:
     hf_id: yonglixiang/ConceptRisk-Repro
@@ -15,5 +15,5 @@ datasets:
     field_mapping:
       sample_id: [sample_id, id, concept_id, idx]
       image: [image_path, image, img, file_name, filepath]
-      prompt: [prompt, text, instruction, caption, concept]
+      prompt: [unsafe_video_prompt, prompt, text, instruction, caption, concept]
       category: [category, risk_category, concept, label, class]

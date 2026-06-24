@@ -1,6 +1,7 @@
 """Image-to-video model client implementations."""
 
 from vii.models.base import I2VModelClient
+from vii.models.generic import GenericI2VClient
 from vii.models.kling import KlingI2VClient
 from vii.models.mock import MockI2VClient
 from vii.models.pixverse import PixVerseI2VClient
@@ -9,6 +10,7 @@ from vii.models.veo import VeoI2VClient
 
 __all__ = [
     "I2VModelClient",
+    "GenericI2VClient",
     "KlingI2VClient",
     "MockI2VClient",
     "PixVerseI2VClient",
