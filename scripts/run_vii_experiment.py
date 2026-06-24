@@ -22,11 +22,12 @@ if str(SRC) not in sys.path:
 
 from vii.data.hf_datasets import DATASET_CONFIGS, iter_dataset_samples
 from vii.grounding import GroundingConfig, VisualInstructionGrounder
-from vii.pipeline import I2VProvider, MockI2VProvider, VIIPipeline
+from vii.models import GenericI2VClient, KlingI2VClient, MockI2VClient, PixVerseI2VClient, SeedanceI2VClient, VeoI2VClient
+from vii.pipeline import I2VProvider, VIIPipeline
 from vii.reprogramming import IntentReprogrammer, MockReprogrammingProvider
 from vii.types import DatasetSample, GenerationResult
 
-MODEL_CHOICES = ("kling", "veo", "seedance", "pixverse", "mock")
+MODEL_CHOICES = ("kling", "veo", "seedance", "pixverse", "generic_i2v", "mock")
 
 
 class TemplateReprogrammingProvider(MockReprogrammingProvider):
@@ -41,57 +42,25 @@ class TemplateReprogrammingProvider(MockReprogrammingProvider):
         return self.template.format(prompt=compact_prompt, category=category).strip()
 
 
-class PlaceholderI2VProvider:
-    """Offline stand-in for named commercial I2V backends.
-
-    The runner intentionally does not embed vendor API calls. It preserves the
-    experiment contract by writing a request JSON artifact for later dispatch.
-    """
-
-    def __init__(self, name: str, dry_run: bool = False):
-        self.name = name
-        self.dry_run = dry_run
-
-    def generate(self, image_path: str, prompt: str, output_path: str, **kwargs: Any) -> GenerationResult:
-        output = Path(output_path)
-        output.parent.mkdir(parents=True, exist_ok=True)
-        request_path = output.with_suffix(".request.json")
-        request_path.write_text(
-            json.dumps(
-                {
-                    "model": self.name,
-                    "dry_run": self.dry_run,
-                    "image_path": image_path,
-                    "prompt": prompt,
-                    "requested_output_path": str(output),
-                    "kwargs": kwargs,
-                },
-                ensure_ascii=False,
-                indent=2,
-            ),
-            encoding="utf-8",
-        )
-        status = "dry_run" if self.dry_run else "request_recorded"
-        return GenerationResult(
-            sample_id=str(kwargs.get("sample_id", "unknown")),
-            grounded_image_path=image_path,
-            video_path=None if self.dry_run else str(request_path),
-            provider=self.name,
-            status=status,
-            metadata={"request_path": str(request_path), "requested_output_path": str(output)},
-        )
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", choices=list(DATASET_CONFIGS.keys()), required=True)
     parser.add_argument("--model", choices=MODEL_CHOICES, required=True)
     parser.add_argument("--config", default="configs/vii.yaml")
+    parser.add_argument("--api-config", default="configs/api.yaml", help="Optional local API credential/config YAML.")
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--wait", action="store_true", help="Poll provider APIs and download completed videos.")
     parser.add_argument("--split", default=None, help="Dataset split override; defaults to dataset config.")
+    parser.add_argument(
+        "--provider-kwarg",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        help="Override generation provider keyword arguments. Values are parsed as JSON when possible.",
+    )
     return parser.parse_args()
 
 
@@ -103,8 +72,10 @@ def main() -> None:
 
     output_dir = Path(args.output_dir)
     samples = list(load_samples(args.dataset, output_dir, args.limit or config.get("attack", {}).get("max_samples"), args.split))
-    provider = build_i2v_provider(args.model, dry_run=args.dry_run)
-    pipeline = build_pipeline(config, output_dir, provider, seed)
+    api_config = load_optional_config(Path(args.api_config))
+    provider = build_i2v_provider(args.model, dry_run=args.dry_run, api_config=api_config)
+    provider_kwargs = build_provider_kwargs(config, args.model, wait=args.wait, overrides=args.provider_kwarg, api_config=api_config)
+    pipeline = build_pipeline(config, output_dir, provider, seed, provider_kwargs)
 
     results = pipeline.run_many(samples)
     summary_path = output_dir / "summary.json"
@@ -114,10 +85,13 @@ def main() -> None:
                 "dataset": args.dataset,
                 "model": args.model,
                 "config": str(Path(args.config)),
+                "api_config": str(Path(args.api_config)) if Path(args.api_config).exists() else None,
                 "output_dir": str(output_dir),
                 "limit": args.limit,
                 "seed": seed,
                 "dry_run": args.dry_run,
+                "wait": args.wait,
+                "provider_kwargs": provider_kwargs,
                 "num_samples": len(samples),
                 "status_counts": count_statuses(results),
             },
@@ -135,7 +109,19 @@ def load_config(path: Path) -> dict[str, Any]:
         return yaml.safe_load(handle) or {}
 
 
-def build_pipeline(config: dict[str, Any], output_dir: Path, provider: I2VProvider, seed: int) -> VIIPipeline:
+def load_optional_config(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    return load_config(path)
+
+
+def build_pipeline(
+    config: dict[str, Any],
+    output_dir: Path,
+    provider: I2VProvider,
+    seed: int,
+    provider_kwargs: dict[str, Any] | None = None,
+) -> VIIPipeline:
     attack = config.get("attack", {})
     grounding_cfg = dict(attack.get("grounding", {}))
     grounding_cfg["seed"] = seed
@@ -150,13 +136,86 @@ def build_pipeline(config: dict[str, Any], output_dir: Path, provider: I2VProvid
         reprogrammer=IntentReprogrammer(provider=reprogram_provider, model=reprogramming.get("model")),
         grounder=VisualInstructionGrounder(GroundingConfig(**grounding_cfg)),
         i2v_provider=provider,
+        provider_kwargs=provider_kwargs,
     )
 
 
-def build_i2v_provider(model: str, dry_run: bool) -> I2VProvider:
-    if model == "mock":
-        return MockI2VProvider(name="mock-i2v-dry-run" if dry_run else "mock-i2v")
-    return PlaceholderI2VProvider(name=model, dry_run=dry_run)
+def build_i2v_provider(model: str, dry_run: bool, api_config: dict[str, Any] | None = None) -> I2VProvider:
+    if model == "mock" or dry_run:
+        return MockI2VClient()
+    if model == "generic_i2v":
+        provider_config = provider_api_config(api_config or {}, model)
+        return GenericI2VClient(
+            api_key=resolve_config_value(provider_config, "api_key"),
+            base_url=resolve_config_value(provider_config, "base_url"),
+            endpoint_path=provider_config.get("endpoint_path"),
+            status_path_template=provider_config.get("status_path_template"),
+        )
+    clients = {
+        "kling": KlingI2VClient,
+        "veo": VeoI2VClient,
+        "seedance": SeedanceI2VClient,
+        "pixverse": PixVerseI2VClient,
+    }
+    return clients[model]()
+
+
+def build_provider_kwargs(
+    config: dict[str, Any],
+    model: str,
+    wait: bool,
+    overrides: list[str],
+    api_config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build provider kwargs from shared generation config, model config, and CLI overrides."""
+
+    model_config_path = ROOT / "configs" / "models.yaml"
+    model_config = load_config(model_config_path).get("models", {}).get(model, {}) if model_config_path.exists() else {}
+    generation = config.get("generation", {})
+    provider_kwargs = dict(generation.get("provider_kwargs", {}))
+    provider_kwargs.update(
+        {
+            "resolution": model_config.get("default_resolution"),
+            "duration": model_config.get("video_duration_seconds"),
+            "model": model_config.get("api_model"),
+            "poll_interval": model_config.get("poll_interval_seconds"),
+            "max_retries": model_config.get("max_retries"),
+            "wait": wait,
+        }
+    )
+    provider_kwargs = {key: value for key, value in provider_kwargs.items() if value is not None}
+    provider_config = provider_api_config(api_config or {}, model)
+    configured_model = resolve_config_value(provider_config, "model")
+    if configured_model:
+        provider_kwargs["model"] = configured_model
+    for override in overrides:
+        if "=" not in override:
+            raise ValueError(f"--provider-kwarg must be KEY=VALUE, got: {override}")
+        key, value = override.split("=", 1)
+        provider_kwargs[key] = parse_provider_value(value)
+    return provider_kwargs
+
+
+def provider_api_config(api_config: dict[str, Any], model: str) -> dict[str, Any]:
+    return dict(api_config.get("providers", {}).get(model, {}))
+
+
+def resolve_config_value(config: dict[str, Any], key: str) -> Any:
+    env_name = config.get(f"{key}_env")
+    if env_name:
+        import os
+
+        env_value = os.getenv(str(env_name))
+        if env_value:
+            return env_value
+    return config.get(key)
+
+
+def parse_provider_value(value: str) -> Any:
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        return value
 
 
 def load_samples(dataset: str, output_dir: Path, limit: int | None, split: str | None) -> Iterable[DatasetSample]:

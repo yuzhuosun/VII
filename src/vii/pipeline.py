@@ -56,6 +56,7 @@ class VIIPipeline:
         reprogrammer: IntentReprogrammer | None = None,
         grounder: VisualInstructionGrounder | None = None,
         i2v_provider: I2VProvider | None = None,
+        provider_kwargs: dict[str, Any] | None = None,
     ):
         self.output_dir = Path(output_dir)
         self.images_dir = self.output_dir / "images"
@@ -64,6 +65,7 @@ class VIIPipeline:
         self.reprogrammer = reprogrammer or IntentReprogrammer(provider="mock")
         self.grounder = grounder or VisualInstructionGrounder(GroundingConfig())
         self.i2v_provider = i2v_provider or MockI2VProvider()
+        self.provider_kwargs = provider_kwargs or {}
 
     def run(self, sample: DatasetSample | dict[str, Any]) -> GenerationResult:
         """Run one sample through the VII workflow and append JSONL metadata."""
@@ -80,6 +82,7 @@ class VIIPipeline:
             image_path=grounded.output_path,
             prompt=reprogrammed.visual_instruction,
             output_path=str(requested_video),
+            **self.provider_kwargs,
             sample_id=sample_obj.sample_id,
         )
 

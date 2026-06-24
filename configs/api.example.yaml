@@ -1,0 +1,15 @@
+# Copy this file to configs/api.yaml and fill in your local credentials.
+# configs/api.yaml is gitignored so real API keys are not committed.
+providers:
+  generic_i2v:
+    # Paratera / 并行科技 OpenAI-compatible gateway example.
+    # You can either put values here or set the corresponding *_env variables.
+    api_key_env: DEEPSEEK_API_KEY
+    base_url_env: DEEPSEEK_BASE_URL
+    model_env: DEEPSEEK_MODEL
+    api_key: null
+    base_url: https://llmapi.paratera.com/v1/
+    model: MiniMax-I2V-01
+    # Override these if Paratera documents a different I2V route.
+    endpoint_path: /v1/videos/image-to-video
+    status_path_template: /v1/videos/{job_id}
