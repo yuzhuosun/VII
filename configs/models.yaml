@@ -4,6 +4,12 @@ models:
     video_duration_seconds: 5
     poll_interval_seconds: 0
     max_retries: 1
+  generic_i2v:
+    api_model: MiniMax-I2V-01
+    default_resolution: 720p
+    video_duration_seconds: 5
+    poll_interval_seconds: 5
+    max_retries: 60
   kling:
     api_model: kling-v2.5-turbo
     default_resolution: 1280x720

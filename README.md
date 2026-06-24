@@ -89,16 +89,20 @@ python scripts/run_vii_experiment.py \
 
 ### 4. Run a single-model experiment
 
-The named model backends (`kling`, `veo`, `seedance`, `pixverse`) call API-compatible image-to-video clients when `--dry-run` is not passed. Configure credentials first:
+The named model backends (`kling`, `veo`, `seedance`, `pixverse`, `generic_i2v`) call API-compatible image-to-video clients when `--dry-run` is not passed. Configure credentials first:
 
 ```bash
 export KLING_API_KEY=...
 export SEEDANCE_API_KEY=...
 export GOOGLE_API_KEY=...
 export PIXVERSE_API_KEY=...
+# For an API gateway that exposes MiniMax-I2V/Doubao-Seedance/etc.
+export I2V_API_KEY=...
+export I2V_BASE_URL=https://your-gateway.example.com
+export I2V_MODEL=MiniMax-I2V-01
 ```
 
-If your account uses a proxy or non-default endpoint, set `KLING_BASE_URL`, `SEEDANCE_BASE_URL`, `VEO_BASE_URL`, or `PIXVERSE_BASE_URL`. Use `--wait` to poll and download completed videos.
+If your account uses a proxy or non-default endpoint, set `KLING_BASE_URL`, `SEEDANCE_BASE_URL`, `VEO_BASE_URL`, `PIXVERSE_BASE_URL`, or the generic `I2V_ENDPOINT_PATH` / `I2V_STATUS_PATH_TEMPLATE`. Use `--wait` to poll and download completed videos.
 
 ```bash
 python scripts/run_vii_experiment.py \

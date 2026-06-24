@@ -57,11 +57,30 @@ The runner selects a real client whenever `--model` is one of `kling`, `veo`, `s
 | Model flag | Default model in `configs/models.yaml` | Required environment variables |
 | --- | --- | --- |
 | `kling` | `kling-v2.5-turbo` | `KLING_API_KEY`; optional `KLING_BASE_URL` |
+| `generic_i2v` | `MiniMax-I2V-01` | `I2V_API_KEY`, `I2V_BASE_URL`; optional `I2V_MODEL`, `I2V_ENDPOINT_PATH`, `I2V_STATUS_PATH_TEMPLATE` |
 | `seedance` | `seedance-1.5-pro` | `SEEDANCE_API_KEY`; optional `SEEDANCE_BASE_URL` |
 | `veo` | `veo-3.1` | Gemini API: `GOOGLE_API_KEY`; optional `VEO_BASE_URL`. Vertex mode: `GOOGLE_GENAI_USE_VERTEXAI=1`, `GOOGLE_CLOUD_PROJECT`, optional `GOOGLE_CLOUD_LOCATION`, and `GOOGLE_OAUTH_ACCESS_TOKEN` |
 | `pixverse` | `pixverse-v5` | `PIXVERSE_API_KEY`; optional `PIXVERSE_BASE_URL` |
 
 The built-in clients use JSON-over-HTTP provider-compatible endpoints. If your provider account exposes a different path or payload schema, set the corresponding `*_BASE_URL` to your proxy/adapter or subclass the matching client in `src/vii/models/`.
+
+If you do not have `KLING_API_KEY` but have an API gateway that exposes models
+such as `MiniMax-I2V-01`, `MiniMax-I2V-01-Director`,
+`MiniMax-I2V-01-Live`, or `Doubao-Seedance-1.0-Pro`, use `generic_i2v`:
+
+```bash
+export I2V_API_KEY=...
+export I2V_BASE_URL=https://your-gateway.example.com
+export I2V_MODEL=MiniMax-I2V-01
+# Optional if your gateway does not use these defaults:
+export I2V_ENDPOINT_PATH=/v1/videos/image-to-video
+export I2V_STATUS_PATH_TEMPLATE=/v1/videos/{job_id}
+```
+
+The generic client sends JSON with `model`, `prompt`, `image`, `resolution`,
+and `duration`, where `image` is a data URI. It accepts either a synchronous
+response containing a video URL or an asynchronous response containing
+`job_id`/`task_id`/`id` for polling.
 
 ## 4. Smoke test
 
@@ -97,12 +116,13 @@ Useful overrides:
 ```bash
 python scripts/run_vii_experiment.py \
   --dataset conceptrisk \
-  --model pixverse \
+  --model generic_i2v \
   --config configs/vii.yaml \
-  --output-dir outputs/conceptrisk_pixverse_api \
+  --output-dir outputs/conceptrisk_generic_i2v_api \
   --limit 5 \
   --seed 42 \
   --wait \
+  --provider-kwarg model=\"MiniMax-I2V-01\" \
   --provider-kwarg duration=5 \
   --provider-kwarg resolution=\"720p\"
 ```

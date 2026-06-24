@@ -22,12 +22,12 @@ if str(SRC) not in sys.path:
 
 from vii.data.hf_datasets import DATASET_CONFIGS, iter_dataset_samples
 from vii.grounding import GroundingConfig, VisualInstructionGrounder
-from vii.models import KlingI2VClient, MockI2VClient, PixVerseI2VClient, SeedanceI2VClient, VeoI2VClient
+from vii.models import GenericI2VClient, KlingI2VClient, MockI2VClient, PixVerseI2VClient, SeedanceI2VClient, VeoI2VClient
 from vii.pipeline import I2VProvider, VIIPipeline
 from vii.reprogramming import IntentReprogrammer, MockReprogrammingProvider
 from vii.types import DatasetSample, GenerationResult
 
-MODEL_CHOICES = ("kling", "veo", "seedance", "pixverse", "mock")
+MODEL_CHOICES = ("kling", "veo", "seedance", "pixverse", "generic_i2v", "mock")
 
 
 class TemplateReprogrammingProvider(MockReprogrammingProvider):
@@ -139,6 +139,7 @@ def build_i2v_provider(model: str, dry_run: bool) -> I2VProvider:
         "veo": VeoI2VClient,
         "seedance": SeedanceI2VClient,
         "pixverse": PixVerseI2VClient,
+        "generic_i2v": GenericI2VClient,
     }
     return clients[model]()
 
