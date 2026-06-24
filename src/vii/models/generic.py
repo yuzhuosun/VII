@@ -30,15 +30,15 @@ class GenericI2VClient(LoggedHTTPClientMixin, I2VModelClient):
         endpoint_path: str | None = None,
         status_path_template: str | None = None,
     ):
-        self.api_key = api_key or require_env("I2V_API_KEY")
-        self.base_url = (base_url or os.getenv("I2V_BASE_URL") or "").rstrip("/")
+        self.api_key = api_key or os.getenv("I2V_API_KEY") or os.getenv("DEEPSEEK_API_KEY") or require_env("I2V_API_KEY")
+        self.base_url = (base_url or os.getenv("I2V_BASE_URL") or os.getenv("DEEPSEEK_BASE_URL") or "").rstrip("/")
         if not self.base_url:
             raise ValueError("Missing required environment variable: I2V_BASE_URL")
         self.endpoint_path = endpoint_path or os.getenv("I2V_ENDPOINT_PATH") or "/v1/videos/image-to-video"
         self.status_path_template = status_path_template or os.getenv("I2V_STATUS_PATH_TEMPLATE") or "/v1/videos/{job_id}"
 
     def generate(self, image_path: str, prompt: str, output_path: str, **kwargs: Any) -> GenerationResult:
-        model = kwargs.get("model") or os.getenv("I2V_MODEL") or "MiniMax-I2V-01"
+        model = kwargs.get("model") or os.getenv("I2V_MODEL") or os.getenv("DEEPSEEK_MODEL") or "MiniMax-I2V-01"
         body = {
             "model": model,
             "prompt": prompt,
@@ -84,6 +84,8 @@ class GenericI2VClient(LoggedHTTPClientMixin, I2VModelClient):
     def _url(self, path: str) -> str:
         if path.startswith("http://") or path.startswith("https://"):
             return path
+        if self.base_url.endswith("/v1") and path.startswith("/v1/"):
+            path = path.removeprefix("/v1")
         return f"{self.base_url}/{path.lstrip('/')}"
 
     def _wait_and_download(self, job_id: str, output_path: str, kwargs: dict[str, Any]) -> str:

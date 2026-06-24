@@ -97,12 +97,12 @@ export SEEDANCE_API_KEY=...
 export GOOGLE_API_KEY=...
 export PIXVERSE_API_KEY=...
 # For an API gateway that exposes MiniMax-I2V/Doubao-Seedance/etc.
-export I2V_API_KEY=...
-export I2V_BASE_URL=https://your-gateway.example.com
-export I2V_MODEL=MiniMax-I2V-01
+export DEEPSEEK_API_KEY=sk-XXX
+export DEEPSEEK_BASE_URL=https://llmapi.paratera.com/v1/
+export DEEPSEEK_MODEL=MiniMax-I2V-01
 ```
 
-If your account uses a proxy or non-default endpoint, set `KLING_BASE_URL`, `SEEDANCE_BASE_URL`, `VEO_BASE_URL`, `PIXVERSE_BASE_URL`, or the generic `I2V_ENDPOINT_PATH` / `I2V_STATUS_PATH_TEMPLATE`. Use `--wait` to poll and download completed videos.
+If your account uses a proxy or non-default endpoint, set `KLING_BASE_URL`, `SEEDANCE_BASE_URL`, `VEO_BASE_URL`, `PIXVERSE_BASE_URL`, or copy `configs/api.example.yaml` to the gitignored `configs/api.yaml` and adjust the generic `endpoint_path` / `status_path_template`. Use `--wait` to poll and download completed videos.
 
 ```bash
 python scripts/run_vii_experiment.py \

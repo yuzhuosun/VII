@@ -47,6 +47,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dataset", choices=list(DATASET_CONFIGS.keys()), required=True)
     parser.add_argument("--model", choices=MODEL_CHOICES, required=True)
     parser.add_argument("--config", default="configs/vii.yaml")
+    parser.add_argument("--api-config", default="configs/api.yaml", help="Optional local API credential/config YAML.")
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--seed", type=int, default=None)
@@ -71,8 +72,9 @@ def main() -> None:
 
     output_dir = Path(args.output_dir)
     samples = list(load_samples(args.dataset, output_dir, args.limit or config.get("attack", {}).get("max_samples"), args.split))
-    provider = build_i2v_provider(args.model, dry_run=args.dry_run)
-    provider_kwargs = build_provider_kwargs(config, args.model, wait=args.wait, overrides=args.provider_kwarg)
+    api_config = load_optional_config(Path(args.api_config))
+    provider = build_i2v_provider(args.model, dry_run=args.dry_run, api_config=api_config)
+    provider_kwargs = build_provider_kwargs(config, args.model, wait=args.wait, overrides=args.provider_kwarg, api_config=api_config)
     pipeline = build_pipeline(config, output_dir, provider, seed, provider_kwargs)
 
     results = pipeline.run_many(samples)
@@ -83,6 +85,7 @@ def main() -> None:
                 "dataset": args.dataset,
                 "model": args.model,
                 "config": str(Path(args.config)),
+                "api_config": str(Path(args.api_config)) if Path(args.api_config).exists() else None,
                 "output_dir": str(output_dir),
                 "limit": args.limit,
                 "seed": seed,
@@ -104,6 +107,12 @@ def main() -> None:
 def load_config(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as handle:
         return yaml.safe_load(handle) or {}
+
+
+def load_optional_config(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    return load_config(path)
 
 
 def build_pipeline(
@@ -131,20 +140,33 @@ def build_pipeline(
     )
 
 
-def build_i2v_provider(model: str, dry_run: bool) -> I2VProvider:
+def build_i2v_provider(model: str, dry_run: bool, api_config: dict[str, Any] | None = None) -> I2VProvider:
     if model == "mock" or dry_run:
         return MockI2VClient()
+    if model == "generic_i2v":
+        provider_config = provider_api_config(api_config or {}, model)
+        return GenericI2VClient(
+            api_key=resolve_config_value(provider_config, "api_key"),
+            base_url=resolve_config_value(provider_config, "base_url"),
+            endpoint_path=provider_config.get("endpoint_path"),
+            status_path_template=provider_config.get("status_path_template"),
+        )
     clients = {
         "kling": KlingI2VClient,
         "veo": VeoI2VClient,
         "seedance": SeedanceI2VClient,
         "pixverse": PixVerseI2VClient,
-        "generic_i2v": GenericI2VClient,
     }
     return clients[model]()
 
 
-def build_provider_kwargs(config: dict[str, Any], model: str, wait: bool, overrides: list[str]) -> dict[str, Any]:
+def build_provider_kwargs(
+    config: dict[str, Any],
+    model: str,
+    wait: bool,
+    overrides: list[str],
+    api_config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Build provider kwargs from shared generation config, model config, and CLI overrides."""
 
     model_config_path = ROOT / "configs" / "models.yaml"
@@ -162,12 +184,31 @@ def build_provider_kwargs(config: dict[str, Any], model: str, wait: bool, overri
         }
     )
     provider_kwargs = {key: value for key, value in provider_kwargs.items() if value is not None}
+    provider_config = provider_api_config(api_config or {}, model)
+    configured_model = resolve_config_value(provider_config, "model")
+    if configured_model:
+        provider_kwargs["model"] = configured_model
     for override in overrides:
         if "=" not in override:
             raise ValueError(f"--provider-kwarg must be KEY=VALUE, got: {override}")
         key, value = override.split("=", 1)
         provider_kwargs[key] = parse_provider_value(value)
     return provider_kwargs
+
+
+def provider_api_config(api_config: dict[str, Any], model: str) -> dict[str, Any]:
+    return dict(api_config.get("providers", {}).get(model, {}))
+
+
+def resolve_config_value(config: dict[str, Any], key: str) -> Any:
+    env_name = config.get(f"{key}_env")
+    if env_name:
+        import os
+
+        env_value = os.getenv(str(env_name))
+        if env_value:
+            return env_value
+    return config.get(key)
 
 
 def parse_provider_value(value: str) -> Any:

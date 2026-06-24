@@ -52,12 +52,12 @@ The normalized prompt field is the unsafe video prompt used by the benchmark:
 
 ## 3. Configure commercial API credentials
 
-The runner selects a real client whenever `--model` is one of `kling`, `veo`, `seedance`, or `pixverse` and `--dry-run` is not passed.
+The runner selects a real client whenever `--model` is one of `kling`, `veo`, `seedance`, `pixverse`, or `generic_i2v` and `--dry-run` is not passed.
 
 | Model flag | Default model in `configs/models.yaml` | Required environment variables |
 | --- | --- | --- |
 | `kling` | `kling-v2.5-turbo` | `KLING_API_KEY`; optional `KLING_BASE_URL` |
-| `generic_i2v` | `MiniMax-I2V-01` | `I2V_API_KEY`, `I2V_BASE_URL`; optional `I2V_MODEL`, `I2V_ENDPOINT_PATH`, `I2V_STATUS_PATH_TEMPLATE` |
+| `generic_i2v` | `MiniMax-I2V-01` | `I2V_API_KEY`/`DEEPSEEK_API_KEY`, `I2V_BASE_URL`/`DEEPSEEK_BASE_URL`; optional `I2V_MODEL`/`DEEPSEEK_MODEL`, `I2V_ENDPOINT_PATH`, `I2V_STATUS_PATH_TEMPLATE` |
 | `seedance` | `seedance-1.5-pro` | `SEEDANCE_API_KEY`; optional `SEEDANCE_BASE_URL` |
 | `veo` | `veo-3.1` | Gemini API: `GOOGLE_API_KEY`; optional `VEO_BASE_URL`. Vertex mode: `GOOGLE_GENAI_USE_VERTEXAI=1`, `GOOGLE_CLOUD_PROJECT`, optional `GOOGLE_CLOUD_LOCATION`, and `GOOGLE_OAUTH_ACCESS_TOKEN` |
 | `pixverse` | `pixverse-v5` | `PIXVERSE_API_KEY`; optional `PIXVERSE_BASE_URL` |
@@ -69,12 +69,30 @@ such as `MiniMax-I2V-01`, `MiniMax-I2V-01-Director`,
 `MiniMax-I2V-01-Live`, or `Doubao-Seedance-1.0-Pro`, use `generic_i2v`:
 
 ```bash
-export I2V_API_KEY=...
-export I2V_BASE_URL=https://your-gateway.example.com
-export I2V_MODEL=MiniMax-I2V-01
-# Optional if your gateway does not use these defaults:
-export I2V_ENDPOINT_PATH=/v1/videos/image-to-video
-export I2V_STATUS_PATH_TEMPLATE=/v1/videos/{job_id}
+cp configs/api.example.yaml configs/api.yaml
+```
+
+Then edit `configs/api.yaml`. For Paratera / 并行科技:
+
+```yaml
+providers:
+  generic_i2v:
+    api_key_env: DEEPSEEK_API_KEY
+    base_url_env: DEEPSEEK_BASE_URL
+    model_env: DEEPSEEK_MODEL
+    api_key: null
+    base_url: https://llmapi.paratera.com/v1/
+    model: MiniMax-I2V-01
+    endpoint_path: /v1/videos/image-to-video
+    status_path_template: /v1/videos/{job_id}
+```
+
+Keep the real key in your shell instead of committing it:
+
+```bash
+export DEEPSEEK_API_KEY=sk-XXX
+export DEEPSEEK_BASE_URL=https://llmapi.paratera.com/v1/
+export DEEPSEEK_MODEL=MiniMax-I2V-01
 ```
 
 The generic client sends JSON with `model`, `prompt`, `image`, `resolution`,
