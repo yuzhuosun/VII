@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 import shutil
 import sys
@@ -13,7 +14,6 @@ from pathlib import Path
 from typing import Any, Iterable
 
 import yaml
-from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -66,6 +66,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     config = load_config(Path(args.config))
+    apply_api_config(config)
     seed = args.seed if args.seed is not None else int(config.get("attack", {}).get("seed", 42))
     random.seed(seed)
 
@@ -104,6 +105,36 @@ def main() -> None:
 def load_config(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as handle:
         return yaml.safe_load(handle) or {}
+
+
+def apply_api_config(config: dict[str, Any]) -> None:
+    """Apply API settings from YAML config to environment variables.
+
+    Secret values can be provided directly with ``api.generic_i2v.api_key`` or,
+    preferably, by naming an environment variable such as ``DEEPSEEK_API_KEY``.
+    The generic I2V client still receives the standard ``I2V_*`` variables.
+    """
+
+    api_config = config.get("api", {})
+    generic_config = api_config.get("generic_i2v", {})
+    if not isinstance(generic_config, dict):
+        return
+
+    mappings = {
+        "I2V_API_KEY": ("api_key", "api_key_env"),
+        "I2V_BASE_URL": ("base_url", "base_url_env"),
+        "I2V_MODEL": ("model", "model_env"),
+        "I2V_ENDPOINT_PATH": ("endpoint_path", "endpoint_path_env"),
+        "I2V_STATUS_PATH_TEMPLATE": ("status_path_template", "status_path_template_env"),
+    }
+    for env_name, (value_key, env_key) in mappings.items():
+        if os.getenv(env_name):
+            continue
+        value = generic_config.get(value_key)
+        if value is None and generic_config.get(env_key):
+            value = os.getenv(str(generic_config[env_key]))
+        if value is not None:
+            os.environ[env_name] = str(value)
 
 
 def build_pipeline(
@@ -149,6 +180,7 @@ def build_provider_kwargs(config: dict[str, Any], model: str, wait: bool, overri
 
     model_config_path = ROOT / "configs" / "models.yaml"
     model_config = load_config(model_config_path).get("models", {}).get(model, {}) if model_config_path.exists() else {}
+    model_config.update(config.get("models", {}).get(model, {}))
     generation = config.get("generation", {})
     provider_kwargs = dict(generation.get("provider_kwargs", {}))
     provider_kwargs.update(
@@ -209,6 +241,7 @@ def persist_sample_image(sample: DatasetSample, image_dir: Path) -> Path | None:
     safe_id = "".join(char if char.isalnum() or char in "._-" else "_" for char in sample.sample_id)
     if sample.image is not None:
         output = image_dir / f"{safe_id}.png"
+        Image = import_pillow_image()
         if isinstance(sample.image, Image.Image):
             sample.image.save(output)
             return output
@@ -222,6 +255,18 @@ def persist_sample_image(sample: DatasetSample, image_dir: Path) -> Path | None:
             shutil.copy2(source, output)
         return output
     return None
+
+
+def import_pillow_image() -> Any:
+    try:
+        from PIL import Image
+    except ImportError as exc:
+        raise RuntimeError(
+            "Pillow is required to handle dataset images, but `from PIL import Image` failed. "
+            "Install it in the same Python environment with `python -m pip install --upgrade --force-reinstall pillow`, "
+            "and make sure your working directory does not contain a file or folder named `PIL`."
+        ) from exc
+    return Image
 
 
 def count_statuses(results: list[GenerationResult]) -> dict[str, int]:

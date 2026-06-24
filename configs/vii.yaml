@@ -23,3 +23,19 @@ attack:
 
 generation:
   provider_kwargs: {}
+
+# Optional API gateway configuration. This keeps provider settings in the
+# experiment config while allowing secrets to stay in your shell environment.
+# For Paratera/并行科技, export DEEPSEEK_API_KEY and use --model generic_i2v.
+api:
+  generic_i2v:
+    api_key_env: DEEPSEEK_API_KEY
+    base_url_env: DEEPSEEK_BASE_URL
+    model_env: DEEPSEEK_MODEL
+    # Uncomment these if your gateway uses non-default paths.
+    # endpoint_path: /v1/videos/image-to-video
+    # status_path_template: /v1/videos/{job_id}
+
+models:
+  generic_i2v:
+    api_model: MiniMax-I2V-01
