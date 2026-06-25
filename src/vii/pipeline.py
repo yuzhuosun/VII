@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import shutil
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -13,6 +12,7 @@ from tqdm import tqdm
 from .grounding import GroundingConfig, VisualInstructionGrounder
 from .reprogramming import IntentReprogrammer
 from .types import DatasetSample, GenerationResult
+from .utils.io import RunPaths, append_jsonl, atomic_write_json
 
 
 class I2VProvider(Protocol):
@@ -33,10 +33,7 @@ class MockI2VProvider:
     def generate(self, image_path: str, prompt: str, output_path: str, **kwargs: Any) -> GenerationResult:
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         placeholder = Path(output_path).with_suffix(".json")
-        placeholder.write_text(
-            json.dumps({"image_path": image_path, "prompt": prompt, "kwargs": kwargs}, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        atomic_write_json(placeholder, {"image_path": image_path, "prompt": prompt, "kwargs": kwargs})
         return GenerationResult(
             sample_id=str(kwargs.get("sample_id", "unknown")),
             grounded_image_path=image_path,
@@ -59,9 +56,10 @@ class VIIPipeline:
         provider_kwargs: dict[str, Any] | None = None,
     ):
         self.output_dir = Path(output_dir)
-        self.images_dir = self.output_dir / "images"
-        self.videos_dir = self.output_dir / "videos"
-        self.metadata_path = self.output_dir / "metadata.jsonl"
+        self.paths = RunPaths(self.output_dir.name, self.output_dir.parent).create()
+        self.images_dir = self.paths.grounded_images_dir
+        self.videos_dir = self.paths.videos_dir
+        self.metadata_path = self.paths.metadata_path
         self.reprogrammer = reprogrammer or IntentReprogrammer(provider="mock")
         self.grounder = grounder or VisualInstructionGrounder(GroundingConfig())
         self.i2v_provider = i2v_provider or MockI2VProvider()
@@ -75,9 +73,9 @@ class VIIPipeline:
         self.videos_dir.mkdir(parents=True, exist_ok=True)
 
         reprogrammed = self.reprogrammer.reprogram(sample_obj.prompt, sample_obj.category)
-        grounded_path = self.images_dir / f"{sample_obj.sample_id}.png"
+        grounded_path = self.paths.grounded_image_path(sample_obj.sample_id)
         grounded = self.grounder.ground(sample_obj.image_path, reprogrammed, grounded_path)
-        requested_video = self.videos_dir / f"{sample_obj.sample_id}.mp4"
+        requested_video = self.paths.video_path(sample_obj.sample_id)
         result = self.i2v_provider.generate(
             image_path=grounded.output_path,
             prompt=reprogrammed.visual_instruction,
@@ -102,8 +100,7 @@ class VIIPipeline:
 
     def _append_metadata(self, record: dict[str, Any]) -> None:
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        with self.metadata_path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+        append_jsonl(self.metadata_path, record)
 
     @staticmethod
     def _coerce_sample(sample: DatasetSample | dict[str, Any]) -> DatasetSample:
