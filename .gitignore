@@ -30,6 +30,10 @@ var/
 *.egg-info/
 *.egg
 pip-wheel-metadata/
+data/
+outputs/
+*vii.yaml
+
 
 # Logs and debug
 *.log
